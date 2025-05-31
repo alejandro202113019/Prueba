@@ -1,0 +1,1020 @@
+ 
+J:\Prueba\config.php 
+ 
+<?php
+// config.php
+$host = 'db.novasecsas.com';
+$dbname = 'GestionHallazgos';
+$user = 'admin';
+$pass = '-J(M*Pt[3wR~d(n<:&';
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $user, $pass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo 'Error de conexión: ' . $e->getMessage();
+    exit;
+}
+?> 
+-------------------------- 
+ 
+J:\Prueba\index.php 
+ 
+<?php
+// index.php
+require_once 'config.php';
+
+$entity = $_GET['entity'] ?? 'hallazgo'; // Valor por defecto 'hallazgo'
+$action = $_GET['action'] ?? 'index';
+$id = $_GET['id'] ?? null;
+
+if ($entity === 'incidente') {
+    require_once 'controllers/IncidenteController.php';
+    $controller = new IncidenteController($pdo);
+} else {
+    require_once 'controllers/HallazgoController.php';
+    $controller = new HallazgoController($pdo);
+}
+
+if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $controller->insert($_POST);
+} elseif ($action === 'edit' && $id && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $controller->update($id, $_POST);
+} elseif ($action === 'delete' && $id) {
+    $controller->delete($id);
+} elseif ($action === 'show' && $id) {
+    $controller->show($id);
+} elseif ($action === 'create') {
+    $controller->create();
+} elseif ($action === 'edit' && $id) {
+    $controller->edit($id);
+} else {
+    $controller->index();
+}
+?> 
+-------------------------- 
+ 
+J:\Prueba\script.sql 
+ 
+-- Eliminar la base de datos si existe y crearla nuevamente
+DROP DATABASE IF EXISTS GestionHallazgos;
+CREATE DATABASE GestionHallazgos;
+USE GestionHallazgos;
+
+-- Crear la tabla de procesos
+CREATE TABLE Proceso (
+    id INT AUTO_INCREMENT PRIMARY KEY,  -- Identificador único para cada proceso
+    nombre VARCHAR(100) NOT NULL,       -- Nombre del proceso (ej. Control de Calidad)
+    descripcion TEXT,                   -- Descripción detallada del proceso
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- Fecha en la que se crea el registro
+);
+
+-- Crear la tabla de estados
+CREATE TABLE Estado (
+    id INT AUTO_INCREMENT PRIMARY KEY,  -- Identificador único para cada estado
+    nombre VARCHAR(50) NOT NULL         -- Nombre del estado (ej. Abierto, Cerrado)
+);
+
+-- Crear la tabla de usuarios
+CREATE TABLE Usuario (
+    id INT AUTO_INCREMENT PRIMARY KEY,  -- Identificador único para cada usuario
+    nombre VARCHAR(100) NOT NULL,       -- Nombre completo del usuario
+    email VARCHAR(100) NOT NULL UNIQUE, -- Correo electrónico único para cada usuario
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- Fecha en la que se registra el usuario
+);
+
+-- Crear la tabla de hallazgos
+CREATE TABLE Hallazgo (
+    id INT AUTO_INCREMENT PRIMARY KEY,      -- Identificador único para cada hallazgo
+    titulo VARCHAR(150) NOT NULL,           -- Título breve del hallazgo
+    descripcion TEXT NOT NULL,              -- Descripción detallada del hallazgo
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Fecha en la que se crea el hallazgo
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Fecha de última actualización
+    id_estado INT,                          -- Estado actual del hallazgo (referencia a Estado)
+    id_usuario INT,                         -- Usuario responsable del hallazgo (referencia a Usuario)
+    FOREIGN KEY (id_estado) REFERENCES Estado(id),  -- Llave foránea a la tabla Estado
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id) -- Llave foránea a la tabla Usuario
+);
+
+-- Crear la tabla de incidentes
+CREATE TABLE Incidente (
+    id INT AUTO_INCREMENT PRIMARY KEY,      -- Identificador único para cada incidente
+    descripcion TEXT NOT NULL,              -- Descripción detallada del incidente
+    fecha_ocurrencia DATE NOT NULL,         -- Fecha en la que ocurrió el incidente
+    id_estado INT,                          -- Estado actual del incidente (referencia a Estado)
+    id_usuario INT,                         -- Usuario que reportó o es responsable del incidente (referencia a Usuario)
+    FOREIGN KEY (id_estado) REFERENCES Estado(id),  -- Llave foránea a la tabla Estado
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id) -- Llave foránea a la tabla Usuario
+);
+
+-- Crear la tabla de planes de acción
+CREATE TABLE PlanAccion (
+    id INT AUTO_INCREMENT PRIMARY KEY,      -- Identificador único para cada plan de acción
+    descripcion TEXT NOT NULL,              -- Descripción detallada del plan de acción
+    id_usuario INT,                         -- Usuario responsable del plan de acción (referencia a Usuario)
+    fecha_inicio DATE,                      -- Fecha de inicio del plan de acción
+    fecha_fin DATE,                         -- Fecha de finalización del plan de acción
+    id_estado INT,                          -- Estado actual del plan de acción (referencia a Estado)
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id), -- Llave foránea a la tabla Usuario
+    FOREIGN KEY (id_estado) REFERENCES Estado(id)    -- Llave foránea a la tabla Estado
+);
+
+-- Crear la tabla de unión Registro_PlanAccion para la relación indirecta entre registros y PlanAccion
+CREATE TABLE Registro_PlanAccion (
+    id INT AUTO_INCREMENT PRIMARY KEY,        -- Identificador único para cada registro en la tabla
+    id_registro INT NOT NULL,                 -- Identificador del registro
+    origen_registro ENUM('INCIDENTE', 'HALLAZGO') NOT NULL,  -- Origen del registro
+    id_plan_accion INT,                       -- Identificador del plan de acción asociado
+    FOREIGN KEY (id_plan_accion) REFERENCES PlanAccion(id)   -- Llave foránea a la tabla PlanAccion
+);
+
+-- Crear la tabla intermedia Hallazgo_Proceso para la relación de muchos a muchos entre hallazgos y procesos
+CREATE TABLE Hallazgo_Proceso (
+    id_hallazgo INT,                          -- Identificador del hallazgo (referencia a Hallazgo)
+    id_proceso INT,                           -- Identificador del proceso (referencia a Proceso)
+    PRIMARY KEY (id_hallazgo, id_proceso),    -- Llave primaria compuesta para garantizar la relación única
+    FOREIGN KEY (id_hallazgo) REFERENCES Hallazgo(id), -- Llave foránea a la tabla Hallazgo
+    FOREIGN KEY (id_proceso) REFERENCES Proceso(id)   -- Llave foránea a la tabla Proceso
+);
+
+-- Insertar datos iniciales en la tabla Estado
+INSERT INTO Estado (nombre) VALUES
+    ('Abierto'),              -- Estado indicando que el registro está abierto
+    ('En Proceso'),           -- Estado indicando que el registro está siendo trabajado
+    ('Resuelto'),             -- Estado indicando que el registro se ha resuelto
+    ('Cerrado');              -- Estado indicando que el registro ha sido cerrado
+
+-- Insertar datos de ejemplo en la tabla Proceso
+INSERT INTO Proceso (nombre, descripcion) VALUES
+    ('Control de Calidad', 'Proceso de control de calidad en la producción de alimentos.'),
+    ('Almacenamiento', 'Proceso de almacenamiento de productos en condiciones adecuadas.'),
+    ('Distribución', 'Proceso de distribución de productos a diferentes destinos.'),
+    ('Higiene y Seguridad', 'Control de higiene en las instalaciones y seguridad de empleados.'),
+    ('Producción', 'Supervisión de la producción en la planta.'),
+    ('Empaque', 'Proceso de empaque de productos alimenticios.'),
+    ('Auditoría Interna', 'Auditoría interna para cumplimiento de normativas.'),
+    ('Evaluación de Proveedores', 'Proceso de evaluación de proveedores de insumos.'),
+    ('Regulación y Cumplimiento', 'Control de cumplimiento con regulaciones alimentarias.'),
+    ('Capacitación', 'Capacitación de empleados en normas de seguridad alimentaria.');
+
+-- Insertar datos de ejemplo en la tabla Usuario
+INSERT INTO Usuario (nombre, email) VALUES
+    ('Ana López', 'ana.lopez@empresa.com'),
+    ('Carlos Martínez', 'carlos.martinez@empresa.com'),
+    ('Laura Jiménez', 'laura.jimenez@empresa.com'),
+    ('Fernando García', 'fernando.garcia@empresa.com'),
+    ('Elena Rojas', 'elena.rojas@empresa.com'),
+    ('David Torres', 'david.torres@empresa.com'),
+    ('Luis Pérez', 'luis.perez@empresa.com'),
+    ('Sofía Morales', 'sofia.morales@empresa.com'),
+    ('Jorge Álvarez', 'jorge.alvarez@empresa.com'),
+    ('Marta Sánchez', 'marta.sanchez@empresa.com');
+
+-- Insertar datos de ejemplo en la tabla Hallazgo
+INSERT INTO Hallazgo (titulo, descripcion, id_estado, id_usuario) VALUES
+    ('Control de Temperatura', 'Problema en el control de temperatura en almacenamiento.', 1, 1),
+    ('Higiene en Planta', 'Falta de desinfección en área de producción.', 2, 2),
+    ('Etiquetado Incorrecto', 'Etiquetas en idioma incorrecto en empaque.', 1, 3),
+    ('Retraso en Distribución', 'Retraso en la entrega de productos a sucursales.', 3, 4),
+    ('Error en Inspección de Calidad', 'Inconsistencias en el control de calidad.', 2, 5),
+    ('Almacenamiento Inadecuado', 'Producto almacenado en lugar sin ventilación.', 1, 6),
+    ('Falta de Capacitación', 'Faltan capacitaciones sobre nuevas normativas.', 2, 7),
+    ('Incumplimiento de Normativa', 'No se cumple normativa de empaque.', 3, 8),
+    ('Problemas de Trazabilidad', 'Dificultad para rastrear origen de materia prima.', 1, 9),
+    ('Evaluación de Proveedores Deficiente', 'Proveedor no cumple con estándares.', 2, 10);
+    
+-- Insertar datos de ejemplo en la tabla Hallazgo_Proceso para asociar hallazgos a múltiples procesos
+INSERT INTO Hallazgo_Proceso (id_hallazgo, id_proceso) VALUES
+    (1, 2), (1, 3), 
+    (2, 4), (2, 5), 
+    (3, 6), (3, 10), 
+    (4, 3), (4, 9), 
+    (5, 1), (5, 4), 
+    (6, 2), (6, 8), 
+    (7, 10), (7, 5), 
+    (8, 6), (8, 9), 
+    (9, 7), (9, 8), 
+    (10, 5), (10, 7);
+
+-- Insertar datos de ejemplo en la tabla Incidente
+INSERT INTO Incidente (descripcion, fecha_ocurrencia, id_estado, id_usuario) VALUES
+    ('Derrame de líquidos en zona de empaque', '2024-10-01', 1, 3),
+    ('Fallo en equipo de refrigeración', '2024-09-20', 2, 5),
+    ('Ingesta de producto contaminado', '2024-09-15', 1, 1),
+    ('Personal sin equipo de protección', '2024-08-25', 3, 4),
+    ('Desabastecimiento de insumos', '2024-08-30', 2, 6),
+    ('Error en etiquetado de lote', '2024-07-18', 1, 7),
+    ('Contaminación en línea de producción', '2024-06-22', 1, 2),
+    ('Rotura de embalaje en almacenamiento', '2024-05-05', 4, 8),
+    ('Incumplimiento de medidas de seguridad', '2024-04-17', 3, 10),
+    ('Atraso en entrega de proveedor crítico', '2024-03-15', 2, 9);
+
+-- Insertar datos de ejemplo en la tabla PlanAccion, asignando id_usuario como responsable
+INSERT INTO PlanAccion (descripcion, id_usuario, fecha_inicio, fecha_fin, id_estado) VALUES
+    ('Reparar equipo de refrigeración', 2, '2024-10-05', '2024-10-20', 2),
+    ('Implementar sistema de etiquetas bilingües', 1, '2024-09-25', '2024-10-10', 1),
+    ('Capacitar personal en manipulación de alimentos', 3, '2024-10-01', '2024-10-15', 2),
+    ('Revisión del sistema de ventilación en almacenes', 4, '2024-09-15', '2024-09-30', 3),
+    ('Cambio de proveedor para insumos', 5, '2024-08-20', '2024-09-10', 1),
+    ('Actualizar procedimientos de limpieza', 6, '2024-07-01', '2024-07-15', 3),
+    ('Revisión de trazabilidad del lote', 7, '2024-06-10', '2024-06-25', 4),
+    ('Instalar señalización en zona de empaque', 8, '2024-05-10', '2024-05-25', 2),
+    ('Evaluación de proveedores alternativos', 9, '2024-04-20', '2024-05-15', 1),
+    ('Actualizar protocolos de emergencia', 10, '2024-03-01', '2024-03-15', 4);
+
+-- Asociar planes de acción a incidentes en la tabla Registro_PlanAccion
+INSERT INTO Registro_PlanAccion (id_registro, origen_registro, id_plan_accion) VALUES
+    (1, 'INCIDENTE', 1),
+    (2, 'INCIDENTE', 2),
+    (3, 'INCIDENTE', 3),
+    (4, 'INCIDENTE', 4),
+    (5, 'INCIDENTE', 5),
+    (6, 'INCIDENTE', 6),
+    (7, 'INCIDENTE', 7),
+    (8, 'INCIDENTE', 8),
+    (9, 'INCIDENTE', 9),
+    (10, 'INCIDENTE', 10); 
+-------------------------- 
+ 
+J:\Prueba\models\UsuarioModel.php 
+ 
+<?php
+// models/UsuarioModel.php
+require_once 'config.php';
+
+class UsuarioModel {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    public function getAll() {
+        $stmt = $this->pdo->query("SELECT * FROM Usuario");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getById($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM Usuario WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+} 
+-------------------------- 
+ 
+J:\Prueba\models\ProcesoModel.php 
+ 
+<?php
+// models/ProcesoModel.php
+require_once 'config.php';
+
+class ProcesoModel {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    public function getAll() {
+        $stmt = $this->pdo->query("SELECT * FROM Proceso");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getById($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM Proceso WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+} 
+-------------------------- 
+ 
+J:\Prueba\models\HallazgoModel.php 
+ 
+<?php
+// models/HallazgoModel.php
+require_once 'config.php';
+
+class HallazgoModel {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    public function getAll() {
+        $stmt = $this->pdo->query("
+            SELECT h.*, e.nombre as estado_nombre, u.nombre as usuario_nombre
+            FROM Hallazgo h
+            LEFT JOIN Estado e ON h.id_estado = e.id
+            LEFT JOIN Usuario u ON h.id_usuario = u.id
+        ");
+        $hallazgos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($hallazgos as &$hallazgo) {
+            $hallazgo['procesos'] = $this->getProcesos($hallazgo['id']);
+        }
+        return $hallazgos;
+    }
+
+    public function getById($id) {
+        $stmt = $this->pdo->prepare("
+            SELECT h.*, e.nombre as estado_nombre, u.nombre as usuario_nombre
+            FROM Hallazgo h
+            LEFT JOIN Estado e ON h.id_estado = e.id
+            LEFT JOIN Usuario u ON h.id_usuario = u.id
+            WHERE h.id = ?
+        ");
+        $stmt->execute([$id]);
+        $hallazgo = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($hallazgo) {
+            $hallazgo['procesos'] = $this->getProcesos($hallazgo['id']);
+        }
+        return $hallazgo;
+    }
+
+    public function insert($titulo, $descripcion, $proceso_ids, $id_estado, $id_usuario) {
+        $stmt = $this->pdo->prepare("INSERT INTO Hallazgo (titulo, descripcion, id_estado, id_usuario) VALUES (?, ?, ?, ?)");
+        $result = $stmt->execute([$titulo, $descripcion, $id_estado, $id_usuario]);
+
+        if ($result) {
+            $hallazgo_id = $this->pdo->lastInsertId();
+            $this->updateProcesos($hallazgo_id, $proceso_ids);
+            return true;
+        }
+        return false;
+    }
+
+    public function update($id, $titulo, $descripcion, $proceso_ids, $id_estado, $id_usuario) {
+        $stmt = $this->pdo->prepare("UPDATE Hallazgo SET titulo = ?, descripcion = ?, id_estado = ?, id_usuario = ? WHERE id = ?");
+        $result = $stmt->execute([$titulo, $descripcion, $id_estado, $id_usuario, $id]);
+
+        if ($result) {
+            $this->updateProcesos($id, $proceso_ids);
+            return true;
+        }
+        return false;
+    }
+
+    public function delete($id) {
+        $stmt = $this->pdo->prepare("DELETE FROM Hallazgo WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
+	
+	private function updateProcesos($hallazgo_id, $proceso_ids) {
+        // Eliminar procesos existentes
+        $stmt = $this->pdo->prepare("DELETE FROM Hallazgo_Proceso WHERE id_hallazgo = ?");
+        $stmt->execute([$hallazgo_id]);
+
+        // Insertar procesos seleccionados
+        foreach ($proceso_ids as $proceso_id) {
+            $stmt = $this->pdo->prepare("INSERT INTO Hallazgo_Proceso (id_hallazgo, id_proceso) VALUES (?, ?)");
+            $stmt->execute([$hallazgo_id, $proceso_id]);
+        }
+    }
+
+    public function getProcesos($hallazgo_id) {
+        $stmt = $this->pdo->prepare("SELECT p.* FROM Proceso p INNER JOIN Hallazgo_Proceso hp ON p.id = hp.id_proceso WHERE hp.id_hallazgo = ?");
+        $stmt->execute([$hallazgo_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+}
+?> 
+-------------------------- 
+ 
+J:\Prueba\models\EstadoModel.php 
+ 
+<?php
+// models/EstadoModel.php
+require_once 'config.php';
+
+class EstadoModel {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    public function getAll() {
+        $stmt = $this->pdo->query("SELECT * FROM Estado");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getById($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM Estado WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+} 
+-------------------------- 
+ 
+J:\Prueba\models\IncidenteModel.php 
+ 
+<?php
+// models/IncidenteModel.php
+require_once 'config.php';
+
+class IncidenteModel {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    public function getAll() {
+        $stmt = $this->pdo->query("
+            SELECT i.*, e.nombre as estado_nombre, u.nombre as usuario_nombre
+            FROM Incidente i
+            LEFT JOIN Estado e ON i.id_estado = e.id
+            LEFT JOIN Usuario u ON i.id_usuario = u.id
+        ");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getById($id) {
+        $stmt = $this->pdo->prepare("
+            SELECT i.*, e.nombre as estado_nombre, u.nombre as usuario_nombre
+            FROM Incidente i
+            LEFT JOIN Estado e ON i.id_estado = e.id
+            LEFT JOIN Usuario u ON i.id_usuario = u.id
+            WHERE i.id = ?
+        ");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function insert($descripcion, $fecha_ocurrencia, $id_estado, $id_usuario) {
+        $stmt = $this->pdo->prepare("INSERT INTO Incidente (descripcion, fecha_ocurrencia, id_estado, id_usuario) VALUES (?, ?, ?, ?)");
+        return $stmt->execute([$descripcion, $fecha_ocurrencia, $id_estado, $id_usuario]);
+    }
+
+    public function update($id, $descripcion, $fecha_ocurrencia, $id_estado, $id_usuario) {
+        $stmt = $this->pdo->prepare("UPDATE Incidente SET descripcion = ?, fecha_ocurrencia = ?, id_estado = ?, id_usuario = ? WHERE id = ?");
+        return $stmt->execute([$descripcion, $fecha_ocurrencia, $id_estado, $id_usuario, $id]);
+    }
+}
+ 
+-------------------------- 
+ 
+J:\Prueba\controllers\IncidenteController.php 
+ 
+<?php
+// controllers/IncidenteController.php
+require_once 'models/IncidenteModel.php';
+require_once 'models/EstadoModel.php';
+require_once 'models/UsuarioModel.php';
+
+class IncidenteController {
+    private $model;
+    private $estadoModel;
+    private $usuarioModel;
+
+    public function __construct($pdo) {
+        $this->model = new IncidenteModel($pdo);
+        $this->estadoModel = new EstadoModel($pdo);
+        $this->usuarioModel = new UsuarioModel($pdo);
+    }
+
+    public function index() {
+        $incidentes = $this->model->getAll();
+        require 'views/incidente/list.php';
+    }
+
+    public function show($id) {
+        $incidente = $this->model->getById($id);
+        require 'views/incidente/show.php';
+    }
+
+    public function create() {
+        $estados = $this->estadoModel->getAll();
+        $usuarios = $this->usuarioModel->getAll();
+        require 'views/incidente/create.php';
+    }
+
+    public function insert($data) {
+        $descripcion = $data['descripcion'];
+        $fecha_ocurrencia = $data['fecha_ocurrencia'];
+        $id_estado = $data['id_estado'];
+        $id_usuario = $data['id_usuario'];
+
+        $this->model->insert($descripcion, $fecha_ocurrencia, $id_estado, $id_usuario);
+        header('Location: index.php?entity=incidente&action=index');
+    }
+
+    public function edit($id) {
+        $incidente = $this->model->getById($id);
+        $estados = $this->estadoModel->getAll();
+        $usuarios = $this->usuarioModel->getAll();
+        require 'views/incidente/edit.php';
+    }
+
+    public function update($id, $data) {
+        $descripcion = $data['descripcion'];
+        $fecha_ocurrencia = $data['fecha_ocurrencia'];
+        $id_estado = $data['id_estado'];
+        $id_usuario = $data['id_usuario'];
+
+        $this->model->update($id, $descripcion, $fecha_ocurrencia, $id_estado, $id_usuario);
+        header('Location: index.php?entity=incidente&action=index');
+    }
+
+    public function delete($id) {
+        $this->model->delete($id);
+        header('Location: index.php?entity=incidente&action=index');
+    }
+} 
+-------------------------- 
+ 
+J:\Prueba\controllers\HallazgoController.php 
+ 
+<?php
+// controllers/HallazgoController.php
+require_once 'models/HallazgoModel.php';
+require_once 'models/ProcesoModel.php';
+require_once 'models/EstadoModel.php';
+require_once 'models/UsuarioModel.php';
+
+class HallazgoController {
+    private $model;
+    private $procesoModel;
+    private $estadoModel;
+    private $usuarioModel;
+
+    public function __construct($pdo) {
+        $this->model = new HallazgoModel($pdo);
+        $this->procesoModel = new ProcesoModel($pdo);
+        $this->estadoModel = new EstadoModel($pdo);
+        $this->usuarioModel = new UsuarioModel($pdo);
+    }
+
+    public function index() {
+        $hallazgos = $this->model->getAll();
+        require 'views/hallazgo/list.php';
+    }
+
+    public function show($id) {
+        $hallazgo = $this->model->getById($id);
+        require 'views/hallazgo/show.php';
+    }
+
+    public function create() {
+        $procesos = $this->procesoModel->getAll();
+        $estados = $this->estadoModel->getAll();
+        $usuarios = $this->usuarioModel->getAll();
+        require 'views/hallazgo/create.php';
+    }
+
+    public function insert($data) {
+        $titulo = $data['titulo'];
+        $descripcion = $data['descripcion'];
+        $proceso_ids = $data['procesos'] ?? [];
+        $id_estado = $data['id_estado'];
+        $id_usuario = $data['id_usuario'];
+
+        $this->model->insert($titulo, $descripcion, $proceso_ids, $id_estado, $id_usuario);
+        header('Location: index.php?entity=hallazgo&action=index');
+    }
+
+    public function edit($id) {
+        $hallazgo = $this->model->getById($id);
+        $procesos = $this->procesoModel->getAll();
+        $estados = $this->estadoModel->getAll();
+        $usuarios = $this->usuarioModel->getAll();
+        $selectedProcesos = $this->model->getProcesos($hallazgo['id']);
+        $selectedProcesoIds = array_column($selectedProcesos, 'id');
+        require 'views/hallazgo/edit.php';
+    }
+
+    public function update($id, $data) {
+        $titulo = $data['titulo'];
+        $descripcion = $data['descripcion'];
+        $proceso_ids = $data['procesos'] ?? [];
+        $id_estado = $data['id_estado'];
+        $id_usuario = $data['id_usuario'];
+
+        $this->model->update($id, $titulo, $descripcion, $proceso_ids, $id_estado, $id_usuario);
+        header('Location: index.php?entity=hallazgo&action=index');
+    }
+
+    public function delete($id) {
+        $this->model->delete($id);
+        header('Location: index.php?action=index');
+    }
+}
+?> 
+-------------------------- 
+ 
+J:\Prueba\assets\js\script.js 
+ 
+ 
+-------------------------- 
+ 
+J:\Prueba\assets\css\styles.css 
+ 
+ 
+-------------------------- 
+ 
+J:\Prueba\views\incidente\edit.php 
+ 
+<!-- views/incidente/edit.php -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Incidente</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<?php include 'views/layout/header.php'; ?>
+<div class="container mt-4">
+    <h1>Editar Incidente</h1>
+    <form action="index.php?entity=incidente&action=edit&id=<?= $incidente['id'] ?>" method="POST">
+        <div class="form-group">
+            <label for="descripcion">Descripción</label>
+            <textarea class="form-control" id="descripcion" name="descripcion" required><?= $incidente['descripcion'] ?></textarea>
+        </div>
+        <div class="form-group">
+            <label for="fecha_ocurrencia">Fecha de Ocurrencia</label>
+            <input type="date" class="form-control" id="fecha_ocurrencia" name="fecha_ocurrencia" value="<?= $incidente['fecha_ocurrencia'] ?>" required>
+        </div>
+        <div class="form-group">
+            <label for="id_estado">Estado</label>
+            <select class="form-control" id="id_estado" name="id_estado" required>
+                <?php foreach ($estados as $estado): ?>
+                    <option value="<?= $estado['id'] ?>" <?= ($estado['id'] == $incidente['id_estado']) ? 'selected' : '' ?>>
+                        <?= $estado['nombre'] ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="id_usuario">Usuario Responsable</label>
+            <select class="form-control" id="id_usuario" name="id_usuario" required>
+                <?php foreach ($usuarios as $usuario): ?>
+                    <option value="<?= $usuario['id'] ?>" <?= ($usuario['id'] == $incidente['id_usuario']) ? 'selected' : '' ?>>
+                        <?= $usuario['nombre'] ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        <a href="index.php?entity=incidente&action=index" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+</body>
+</html> 
+-------------------------- 
+ 
+J:\Prueba\views\incidente\create.php 
+ 
+<!-- views/incidente/create.php -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Crear Incidente</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<?php include 'views/layout/header.php'; ?>
+<div class="container mt-4">
+    <h1>Crear Incidente</h1>
+    <form action="index.php?entity=incidente&action=create" method="POST">
+        <div class="form-group">
+            <label for="descripcion">Descripción</label>
+            <textarea class="form-control" id="descripcion" name="descripcion" required></textarea>
+        </div>
+        <div class="form-group">
+            <label for="fecha_ocurrencia">Fecha de Ocurrencia</label>
+            <input type="date" class="form-control" id="fecha_ocurrencia" name="fecha_ocurrencia" required>
+        </div>
+        <div class="form-group">
+            <label for="id_estado">Estado</label>
+            <select class="form-control" id="id_estado" name="id_estado" required>
+                <?php foreach ($estados as $estado): ?>
+                    <option value="<?= $estado['id'] ?>"><?= $estado['nombre'] ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="id_usuario">Usuario Responsable</label>
+            <select class="form-control" id="id_usuario" name="id_usuario" required>
+                <?php foreach ($usuarios as $usuario): ?>
+                    <option value="<?= $usuario['id'] ?>"><?= $usuario['nombre'] ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a href="index.php?entity=incidente&action=index" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+</body>
+</html> 
+-------------------------- 
+ 
+J:\Prueba\views\incidente\show.php 
+ 
+<!-- views/incidente/show.php -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalle del Incidente</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<?php include 'views/layout/header.php'; ?>
+<div class="container mt-4">
+    <h1>Detalle del Incidente</h1>
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">ID: <?= $incidente['id'] ?></h5>
+            <p class="card-text">Descripción: <?= $incidente['descripcion'] ?></p>
+            <p class="card-text">Fecha de Ocurrencia: <?= $incidente['fecha_ocurrencia'] ?></p>
+            <p class="card-text">Estado: <?= $incidente['estado_nombre'] ?></p>
+            <p class="card-text">Usuario Responsable: <?= $incidente['usuario_nombre'] ?></p>
+            <a href="index.php?entity=incidente&action=edit&id=<?= $incidente['id'] ?>" class="btn btn-warning">Editar</a>
+            <a href="index.php?entity=incidente&action=delete&id=<?= $incidente['id'] ?>" class="btn btn-danger" onclick="return confirm('¿Está seguro de eliminar este incidente?')">Eliminar</a>
+            <a href="index.php?entity=incidente&action=index" class="btn btn-secondary">Volver a la lista</a>
+        </div>
+    </div>
+</div>
+</body>
+</html> 
+-------------------------- 
+ 
+J:\Prueba\views\incidente\list.php 
+ 
+<!-- views/incidente/list.php -->
+<?php include 'views/layout/header.php'; ?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de Incidentes</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <h1>Lista de Incidentes</h1>
+    <a href="index.php?entity=incidente&action=create" class="btn btn-primary mb-3">Crear Incidente</a>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Descripción</th>
+                <th>Fecha de Ocurrencia</th>
+                <th>Estado</th>
+                <th>Usuario</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($incidentes as $incidente): ?>
+            <tr>
+                <td><?= $incidente['id'] ?></td>
+                <td><?= $incidente['descripcion'] ?></td>
+                <td><?= $incidente['fecha_ocurrencia'] ?></td>
+                <td><?= $incidente['estado_nombre'] ?></td>
+                <td><?= $incidente['usuario_nombre'] ?></td>
+                <td>
+                    <a href="index.php?entity=incidente&action=show&id=<?= $incidente['id'] ?>" class="btn btn-info btn-sm">Ver</a>
+                    <a href="index.php?entity=incidente&action=edit&id=<?= $incidente['id'] ?>" class="btn btn-warning btn-sm">Editar</a>
+                    <a href="index.php?entity=incidente&action=delete&id=<?= $incidente['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Está seguro?')">Eliminar</a>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+</body>
+</html> 
+-------------------------- 
+ 
+J:\Prueba\views\layout\header.php 
+ 
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="index.php">Gestión</a>
+    <div class="collapse navbar-collapse">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item <?= ($entity === 'hallazgo') ? 'active' : '' ?>">
+                <a class="nav-link" href="index.php?entity=hallazgo&action=index">Hallazgos</a>
+            </li>
+            <li class="nav-item <?= ($entity === 'incidente') ? 'active' : '' ?>">
+                <a class="nav-link" href="index.php?entity=incidente&action=index">Incidentes</a>
+            </li>
+        </ul>
+    </div>
+</nav> 
+-------------------------- 
+ 
+J:\Prueba\views\hallazgo\edit.php 
+ 
+<!-- views/hallazgo/edit.php -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Hallazgo</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<?php include 'views/layout/header.php'; ?>
+<div class="container mt-4">
+    <h1>Editar Hallazgo</h1>
+    <form action="index.php?entity=hallazgo&action=edit&id=<?= $hallazgo['id'] ?>" method="POST">
+        <div class="form-group">
+            <label for="titulo">Título</label>
+            <input type="text" class="form-control" id="titulo" name="titulo" value="<?= $hallazgo['titulo'] ?>" required>
+        </div>
+        <div class="form-group">
+            <label for="descripcion">Descripción</label>
+            <textarea class="form-control" id="descripcion" name="descripcion" required><?= $hallazgo['descripcion'] ?></textarea>
+        </div>
+        <div class="form-group">
+            <label for="id_estado">Estado</label>
+            <select class="form-control" id="id_estado" name="id_estado" required>
+                <?php foreach ($estados as $estado): ?>
+                    <option value="<?= $estado['id'] ?>" <?= ($estado['id'] == $hallazgo['id_estado']) ? 'selected' : '' ?>>
+                        <?= $estado['nombre'] ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="id_usuario">Usuario Responsable</label>
+            <select class="form-control" id="id_usuario" name="id_usuario" required>
+                <?php foreach ($usuarios as $usuario): ?>
+                    <option value="<?= $usuario['id'] ?>" <?= ($usuario['id'] == $hallazgo['id_usuario']) ? 'selected' : '' ?>>
+                        <?= $usuario['nombre'] ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="procesos">Procesos</label>
+            <select multiple class="form-control" id="procesos" name="procesos[]">
+                <?php foreach ($procesos as $proceso): ?>
+                    <option value="<?= $proceso['id'] ?>" <?= in_array($proceso['id'], $selectedProcesoIds) ? 'selected' : '' ?>>
+                        <?= $proceso['nombre'] ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        <a href="index.php?entity=hallazgo&action=index" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+</body>
+</html>
+ 
+-------------------------- 
+ 
+J:\Prueba\views\hallazgo\create.php 
+ 
+<!-- views/hallazgo/create.php -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Crear Hallazgo</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<?php include 'views/layout/header.php'; ?>
+<div class="container mt-4">
+    <h1>Crear Hallazgo</h1>
+    <form action="index.php?entity=hallazgo&action=create" method="POST">
+        <div class="form-group">
+            <label for="titulo">Título</label>
+            <input type="text" class="form-control" id="titulo" name="titulo" required>
+        </div>
+        <div class="form-group">
+            <label for="descripcion">Descripción</label>
+            <textarea class="form-control" id="descripcion" name="descripcion" required></textarea>
+        </div>
+        <div class="form-group">
+            <label for="id_estado">Estado</label>
+            <select class="form-control" id="id_estado" name="id_estado" required>
+                <?php foreach ($estados as $estado): ?>
+                    <option value="<?= $estado['id'] ?>"><?= $estado['nombre'] ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="id_usuario">Usuario Responsable</label>
+            <select class="form-control" id="id_usuario" name="id_usuario" required>
+                <?php foreach ($usuarios as $usuario): ?>
+                    <option value="<?= $usuario['id'] ?>"><?= $usuario['nombre'] ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="procesos">Procesos</label>
+            <select multiple class="form-control" id="procesos" name="procesos[]">
+                <?php foreach ($procesos as $proceso): ?>
+                    <option value="<?= $proceso['id'] ?>"><?= $proceso['nombre'] ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a href="index.php?entity=hallazgo&action=index" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+</body>
+</html> 
+-------------------------- 
+ 
+J:\Prueba\views\hallazgo\show.php 
+ 
+<!-- views/hallazgo/show.php -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalle del Hallazgo</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<?php include 'views/layout/header.php'; ?>
+<div class="container mt-4">
+    <h1>Detalle del Hallazgo</h1>
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">ID: <?= $hallazgo['id'] ?></h5>
+            <h6 class="card-subtitle mb-2 text-muted">Título: <?= $hallazgo['titulo'] ?></h6>
+            <p class="card-text">Descripción: <?= $hallazgo['descripcion'] ?></p>
+            <p class="card-text">Estado: <?= $hallazgo['estado_nombre'] ?></p>
+            <p class="card-text">Usuario Responsable: <?= $hallazgo['usuario_nombre'] ?></p>
+            <h6>Procesos Asociados:</h6>
+            <ul>
+                <?php foreach ($hallazgo['procesos'] as $proceso): ?>
+                    <li><?= $proceso['nombre'] ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <a href="index.php?entity=hallazgo&action=edit&id=<?= $hallazgo['id'] ?>" class="btn btn-warning">Editar</a>
+            <a href="index.php?entity=hallazgo&action=delete&id=<?= $hallazgo['id'] ?>" class="btn btn-danger" onclick="return confirm('¿Está seguro de eliminar este hallazgo?')">Eliminar</a>
+            <a href="index.php?entity=hallazgo&action=index" class="btn btn-secondary">Volver a la lista</a>
+        </div>
+    </div>
+</div>
+</body>
+</html> 
+-------------------------- 
+ 
+J:\Prueba\views\hallazgo\list.php 
+ 
+<!-- views/hallazgo/list.php -->
+<?php include 'views/layout/header.php'; ?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de Hallazgos</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <h1>Lista de Hallazgos</h1>
+    <a href="index.php?entity=hallazgo&action=create" class="btn btn-primary mb-3">Crear Hallazgo</a>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Título</th>
+                <th>Descripción</th>
+                <th>Estado</th>
+                <th>Usuario</th>
+                <th>Procesos</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($hallazgos as $hallazgo): ?>
+            <tr>
+                <td><?= $hallazgo['id'] ?></td>
+                <td><?= $hallazgo['titulo'] ?></td>
+                <td><?= $hallazgo['descripcion'] ?></td>
+                <td><?= $hallazgo['estado_nombre'] ?></td>
+                <td><?= $hallazgo['usuario_nombre'] ?></td>
+                <td>
+                    <ul>
+                        <?php foreach ($hallazgo['procesos'] as $proceso): ?>
+                            <li><?= $proceso['nombre'] ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </td>
+                <td>
+                    <a href="index.php?entity=hallazgo&action=show&id=<?= $hallazgo['id'] ?>" class="btn btn-info btn-sm">Ver</a>
+                    <a href="index.php?entity=hallazgo&action=edit&id=<?= $hallazgo['id'] ?>" class="btn btn-warning btn-sm">Editar</a>
+                    <a href="index.php?entity=hallazgo&action=delete&id=<?= $hallazgo['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Está seguro?')">Eliminar</a>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+</body>
+</html> 
+-------------------------- 
+ 
