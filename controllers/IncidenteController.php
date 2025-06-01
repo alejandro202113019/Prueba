@@ -96,4 +96,62 @@ class IncidenteController {
         $this->planAccionModel->delete($id_plan_accion);
         header('Location: index.php?entity=incidente&action=planes_accion&id=' . $id_incidente);
     }
+
+    /**
+     * API endpoint para búsqueda de incidente por ID
+     * Método: GET index.php?entity=incidente&action=buscar_por_id&id=X
+     */
+    public function buscarPorId() {
+        header('Content-Type: application/json');
+        header('Cache-Control: no-cache, must-revalidate');
+        
+        try {
+            $id = $_GET['id'] ?? null;
+            
+            if (!$id) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Parámetro ID es requerido'
+                ]);
+                return;
+            }
+            
+            // Usar Strategy Pattern para la búsqueda
+            require_once 'models/strategies/IncidenteSearchStrategy.php';
+            $strategy = new IncidenteSearchStrategy($this->model);
+            
+            $incidente = $strategy->search($id);
+            
+            if ($incidente) {
+                echo json_encode([
+                    'success' => true, 
+                    'data' => $incidente,
+                    'message' => 'Incidente encontrado exitosamente'
+                ]);
+            } else {
+                http_response_code(404);
+                echo json_encode([
+                    'success' => false, 
+                    'message' => "No se encontró incidente con ID: {$id}"
+                ]);
+            }
+            
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false, 
+                'message' => $e->getMessage()
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Error interno del servidor'
+            ]);
+            
+            // Log del error para debugging
+            error_log("Error en búsqueda de incidente: " . $e->getMessage());
+        }
+    }
 }

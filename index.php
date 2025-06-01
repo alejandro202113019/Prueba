@@ -10,7 +10,10 @@ if ($entity === 'incidente') {
     require_once 'controllers/IncidenteController.php';
     $controller = new IncidenteController($pdo);
 
-    if ($action === 'planes_accion' && $id) {
+    // NUEVA ACCIÓN: Búsqueda por ID
+    if ($action === 'buscar_por_id') {
+        $controller->buscarPorId();
+    } elseif ($action === 'planes_accion' && $id) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['action_plan']) && $_POST['action_plan'] === 'create') {
                 $controller->insertPlanAccion($id, $_POST);

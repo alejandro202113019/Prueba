@@ -11,7 +11,10 @@
 <div class="container mt-4">
     <h1>Lista de Incidentes</h1>
     <a href="index.php?entity=incidente&action=create" class="btn btn-primary mb-3">Crear Incidente</a>
-    <table class="table table-bordered">
+    
+    <!-- Aquí se insertará dinámicamente el campo de búsqueda -->
+    
+    <table class="table table-bordered" id="incidentes-table">
         <thead>
             <tr>
                 <th>ID</th>
@@ -34,12 +37,15 @@
                     <a href="index.php?entity=incidente&action=show&id=<?= $incidente['id'] ?>" class="btn btn-info btn-sm">Ver</a>
                     <a href="index.php?entity=incidente&action=edit&id=<?= $incidente['id'] ?>" class="btn btn-warning btn-sm">Editar</a>
                     <a href="index.php?entity=incidente&action=delete&id=<?= $incidente['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Está seguro?')">Eliminar</a>
-					 <a href="index.php?entity=incidente&action=planes_accion&id=<?= $incidente['id'] ?>" class="btn btn-secondary btn-sm">Planes de Acción</a>
+                    <a href="index.php?entity=incidente&action=planes_accion&id=<?= $incidente['id'] ?>" class="btn btn-secondary btn-sm">Planes de Acción</a>
                 </td>
             </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
 </div>
+
+<!-- Incluir el componente de búsqueda -->
+<script src="assets/js/components/SearchComponent.js"></script>
 </body>
 </html>
