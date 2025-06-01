@@ -1,5 +1,5 @@
 <?php
-// index.php
+// index.php - Versión final con todas las funcionalidades
 require_once 'config.php';
 
 $entity = $_GET['entity'] ?? 'hallazgo'; // Valor por defecto 'hallazgo'
@@ -10,9 +10,15 @@ if ($entity === 'incidente') {
     require_once 'controllers/IncidenteController.php';
     $controller = new IncidenteController($pdo);
 
-    // NUEVA ACCIÓN: Búsqueda por ID
+    // H-4063: Búsqueda por ID
     if ($action === 'buscar_por_id') {
         $controller->buscarPorId();
+    // H-5995: Cambio de estado
+    } elseif ($action === 'obtener_estados_permitidos') {
+        $controller->obtenerEstadosPermitidos();
+    } elseif ($action === 'cambiar_estado') {
+        $controller->cambiarEstado();
+    // Planes de acción existentes
     } elseif ($action === 'planes_accion' && $id) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['action_plan']) && $_POST['action_plan'] === 'create') {
@@ -28,7 +34,7 @@ if ($entity === 'incidente') {
             $controller->planesAccion($id);
         }
     } else {
-        // Acciones existentes para 'incidente'
+        // Acciones CRUD estándar para incidentes
         if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $controller->insert($_POST);
         } elseif ($action === 'edit' && $id && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -46,24 +52,37 @@ if ($entity === 'incidente') {
         }
     }
 } else {
+    // Entidad: hallazgo
     require_once 'controllers/HallazgoController.php';
     $controller = new HallazgoController($pdo);
 
-    // Acciones existentes para 'hallazgo'
-    if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $controller->insert($_POST);
-    } elseif ($action === 'edit' && $id && $_SERVER['REQUEST_METHOD'] === 'POST') {
-        $controller->update($id, $_POST);
-    } elseif ($action === 'delete' && $id) {
-        $controller->delete($id);
-    } elseif ($action === 'show' && $id) {
-        $controller->show($id);
-    } elseif ($action === 'create') {
-        $controller->create();
-    } elseif ($action === 'edit' && $id) {
-        $controller->edit($id);
+    // H-6568: Filtros y estadísticas de sede
+    if ($action === 'filtrar_por_sede') {
+        $controller->filtrarPorSede();
+    } elseif ($action === 'estadisticas_sedes') {
+        $controller->estadisticasSedes();
+    // H-5995: Cambio de estado
+    } elseif ($action === 'obtener_estados_permitidos') {
+        $controller->obtenerEstadosPermitidos();
+    } elseif ($action === 'cambiar_estado') {
+        $controller->cambiarEstado();
     } else {
-        $controller->index();
+        // Acciones CRUD estándar para hallazgos
+        if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->insert($_POST);
+        } elseif ($action === 'edit' && $id && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->update($id, $_POST);
+        } elseif ($action === 'delete' && $id) {
+            $controller->delete($id);
+        } elseif ($action === 'show' && $id) {
+            $controller->show($id);
+        } elseif ($action === 'create') {
+            $controller->create();
+        } elseif ($action === 'edit' && $id) {
+            $controller->edit($id);
+        } else {
+            $controller->index();
+        }
     }
 }
 ?>

@@ -1,9 +1,12 @@
 <?php
-// controllers/IncidenteController.php
+// controllers/IncidenteController.php - Versión con cambio de estado
 require_once 'models/IncidenteModel.php';
 require_once 'models/EstadoModel.php';
 require_once 'models/UsuarioModel.php';
 require_once 'models/PlanAccionModel.php';
+require_once 'models/factories/EstadoFactory.php';
+require_once 'models/commands/CambiarEstadoCommand.php';
+require_once 'models/EventManager.php';
 
 class IncidenteController {
     private $model;
@@ -154,4 +157,129 @@ class IncidenteController {
             error_log("Error en búsqueda de incidente: " . $e->getMessage());
         }
     }
+
+    /**
+     * API endpoint para obtener estados permitidos desde el estado actual
+     * Método: GET index.php?entity=incidente&action=obtener_estados_permitidos&record_id=X&estado_actual=Y
+     */
+    public function obtenerEstadosPermitidos() {
+        header('Content-Type: application/json');
+        header('Cache-Control: no-cache, must-revalidate');
+        
+        try {
+            $recordId = $_GET['record_id'] ?? null;
+            $estadoActual = $_GET['estado_actual'] ?? null;
+            
+            if (!$recordId || !$estadoActual) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Parámetros record_id y estado_actual son requeridos'
+                ]);
+                return;
+            }
+            
+            // Obtener estados permitidos usando State Pattern
+            $estadosPermitidos = EstadoFactory::obtenerEstadosPermitidos($estadoActual);
+            
+            // Formatear para el frontend
+            $opciones = [];
+            foreach ($estadosPermitidos as $estado => $descripcion) {
+                $opciones[] = [
+                    'estado' => $estado,
+                    'descripcion' => $descripcion
+                ];
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'data' => $opciones,
+                'message' => count($opciones) . ' opciones disponibles'
+            ]);
+            
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error obteniendo estados permitidos'
+            ]);
+            
+            error_log("Error obteniendo estados permitidos: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * API endpoint para cambiar estado usando Command Pattern
+     * Método: POST con entity=incidente&action=cambiar_estado
+     */
+    public function cambiarEstado() {
+        header('Content-Type: application/json');
+        header('Cache-Control: no-cache, must-revalidate');
+        
+        try {
+            $recordId = $_POST['record_id'] ?? null;
+            $estadoActual = $_POST['estado_actual'] ?? null;
+            $estadoNuevo = $_POST['estado_nuevo'] ?? null;
+            $usuarioId = $_POST['usuario_id'] ?? 1; // TODO: Obtener usuario actual
+            $comentario = $_POST['comentario'] ?? null;
+            
+            if (!$recordId || !$estadoActual || !$estadoNuevo) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Parámetros requeridos: record_id, estado_actual, estado_nuevo'
+                ]);
+                return;
+            }
+            
+            // Verificar que el incidente existe
+            $incidente = $this->model->getById($recordId);
+            if (!$incidente) {
+                http_response_code(404);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Incidente no encontrado'
+                ]);
+                return;
+            }
+            
+            // Crear y ejecutar comando usando Command Pattern
+            $command = new CambiarEstadoCommand(
+                $recordId,
+                'incidente',
+                $estadoActual,
+                $estadoNuevo,
+                $usuarioId,
+                $this->model,
+                $comentario
+            );
+            
+            $resultado = $command->execute();
+            
+            if ($resultado) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => "Estado cambiado exitosamente de '{$estadoActual}' a '{$estadoNuevo}'",
+                    'data' => [
+                        'record_id' => $recordId,
+                        'estado_anterior' => $estadoActual,
+                        'estado_nuevo' => $estadoNuevo,
+                        'timestamp' => date('Y-m-d H:i:s')
+                    ]
+                ]);
+            } else {
+                throw new Exception("Error ejecutando el comando de cambio de estado");
+            }
+            
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error cambiando estado: ' . $e->getMessage()
+            ]);
+            
+            error_log("Error en cambio de estado: " . $e->getMessage());
+        }
+    }
 }
+?>
