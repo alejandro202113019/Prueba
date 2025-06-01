@@ -1,5 +1,5 @@
 <?php
-// models/HallazgoModel.php - Versión con cambio de estado
+// models/HallazgoModel.php
 require_once 'config.php';
 
 class HallazgoModel {

@@ -1,8 +1,8 @@
 <?php
-// index.php - Versión final con todas las funcionalidades CORREGIDA
+// index.php 
 require_once 'config.php';
 
-$entity = $_GET['entity'] ?? 'hallazgo'; // Valor por defecto 'hallazgo'
+$entity = $_GET['entity'] ?? 'hallazgo'; 
 $action = $_GET['action'] ?? 'index';
 $id = $_GET['id'] ?? null;
 

@@ -1,5 +1,5 @@
 <?php
-// controllers/IncidenteController.php - Versión con cambio de estado
+// controllers/IncidenteController.php 
 require_once 'models/IncidenteModel.php';
 require_once 'models/EstadoModel.php';
 require_once 'models/UsuarioModel.php';

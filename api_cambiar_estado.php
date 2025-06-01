@@ -1,7 +1,7 @@
 <?php
 // api_cambiar_estado.php - Endpoint dedicado para cambio de estados
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // No mostrar errores en pantalla para no afectar JSON
+ini_set('display_errors', 0); 
 
 // PRIMERA LÍNEA: Headers JSON
 header('Content-Type: application/json');

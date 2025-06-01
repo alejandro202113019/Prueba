@@ -1,5 +1,5 @@
 <?php
-// models/IncidenteModel.php - Versión con cambio de estado
+// models/IncidenteModel.php 
 require_once 'config.php';
 
 class IncidenteModel {

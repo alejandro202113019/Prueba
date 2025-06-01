@@ -1,4 +1,4 @@
-<!-- views/hallazgo/list.php - SIN DUPLICADOS -->
+<!-- views/hallazgo/list.php -->
 <?php include 'views/layout/header.php'; ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -18,7 +18,7 @@
         </div>
     </div>
 
-    <!-- FILTRO POR SEDE - ÚNICO (NO DUPLICADO) -->
+    <!-- FILTRO POR SEDE - ÚNICO  -->
     <div class="mb-3">
         <div class="row">
             <div class="col-md-4">
@@ -151,7 +151,6 @@
 <script src="assets/js/components/EstadoManager.js"></script>
 
 <script>
-// Filtro de sedes - CON IDs ÚNICOS (SIN DUPLICADOS)
 document.getElementById('sede-filter-main').addEventListener('change', function() {
     const sedeId = this.value;
     if (sedeId) {
@@ -165,7 +164,6 @@ document.getElementById('clear-sede-filter-main').addEventListener('click', func
     window.location.href = 'index.php?entity=hallazgo&action=index';
 });
 
-// Debug para verificar que no hay duplicados
 document.addEventListener('DOMContentLoaded', function() {
     const sedeFilters = document.querySelectorAll('[id*="sede-filter"]');
     console.log(`🔍 Filtros de sede encontrados: ${sedeFilters.length}`);
@@ -182,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* Asegurar que no hay elementos duplicados visibles */
+
 [id*="sede-filter"]:not(#sede-filter-main) {
     display: none !important;
 }

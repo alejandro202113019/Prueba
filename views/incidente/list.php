@@ -13,22 +13,6 @@
         <h1>Lista de Incidentes</h1>
         <a href="index.php?entity=incidente&action=create" class="btn btn-primary">Crear Incidente</a>
     </div>
-
-    <!-- Leyenda de Estados -->
-    <div class="mb-3">
-        <div class="card">
-            <div class="card-body py-2">
-                <small class="text-muted">
-                    <strong>Estados:</strong>
-                    <span class="badge badge-danger">🚨 Abierto</span>
-                    <span class="badge badge-warning">⚠️ En Proceso</span>
-                    <span class="badge badge-success">✅ Resuelto</span>
-                    <span class="badge badge-secondary">🔒 Cerrado</span>
-                    <em class="ml-2">Haz clic en cualquier estado para cambiarlo</em>
-                </small>
-            </div>
-        </div>
-    </div>
     
     <!-- Campo de búsqueda (se insertará dinámicamente por SearchComponent) -->
     

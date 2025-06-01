@@ -1,5 +1,5 @@
 <?php
-// controllers/HallazgoController.php - Versión completa con cambio de estado
+// controllers/HallazgoController.php 
 require_once 'models/HallazgoModel.php';
 require_once 'models/ProcesoModel.php';
 require_once 'models/EstadoModel.php';
@@ -360,8 +360,7 @@ class HallazgoController {
             ];
             echo json_encode($errorResponse);
         }
-        
-        // CRÍTICO: Terminar aquí para evitar output adicional
+
         error_log("🔚 FINAL cambiarEstado() - Ejecutando exit");
         exit;
     }

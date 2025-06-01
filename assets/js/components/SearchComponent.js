@@ -1,11 +1,10 @@
-// assets/js/components/SearchComponent.js - Versión corregida
+// assets/js/components/SearchComponent.js 
 class IncidenteSearchComponent {
     constructor() {
         this.init();
     }
     
     init() {
-        // Verificar que estamos en la página correcta
         const table = document.getElementById('incidentes-table');
         if (!table) {
             console.log('Tabla incidentes-table no encontrada');

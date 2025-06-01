@@ -1,4 +1,4 @@
-// assets/js/components/EstadoManager.js - Usando API dedicada
+// assets/js/components/EstadoManager.js 
 class EstadoManager {
     constructor() {
         this.entity = this.detectEntity();
@@ -395,7 +395,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (isListPage) {
         console.log('🔄 Inicializando EstadoManager...');
-        // Pequeño delay para asegurar que otros scripts se carguen
         setTimeout(() => {
             new EstadoManager();
         }, 500);
