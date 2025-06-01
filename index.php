@@ -1,5 +1,5 @@
 <?php
-// index.php - Versión final con todas las funcionalidades
+// index.php - Versión final con todas las funcionalidades CORREGIDA
 require_once 'config.php';
 
 $entity = $_GET['entity'] ?? 'hallazgo'; // Valor por defecto 'hallazgo'
@@ -13,11 +13,14 @@ if ($entity === 'incidente') {
     // H-4063: Búsqueda por ID
     if ($action === 'buscar_por_id') {
         $controller->buscarPorId();
+        exit; // IMPORTANTE: Salir después de JSON
     // H-5995: Cambio de estado
     } elseif ($action === 'obtener_estados_permitidos') {
         $controller->obtenerEstadosPermitidos();
+        exit; // IMPORTANTE: Salir después de JSON
     } elseif ($action === 'cambiar_estado') {
         $controller->cambiarEstado();
+        exit; // IMPORTANTE: Salir después de JSON
     // Planes de acción existentes
     } elseif ($action === 'planes_accion' && $id) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -59,13 +62,16 @@ if ($entity === 'incidente') {
     // H-6568: Filtros y estadísticas de sede
     if ($action === 'filtrar_por_sede') {
         $controller->filtrarPorSede();
+        exit; // IMPORTANTE: Salir después de JSON
     } elseif ($action === 'estadisticas_sedes') {
         $controller->estadisticasSedes();
     // H-5995: Cambio de estado
     } elseif ($action === 'obtener_estados_permitidos') {
         $controller->obtenerEstadosPermitidos();
+        exit; // IMPORTANTE: Salir después de JSON
     } elseif ($action === 'cambiar_estado') {
         $controller->cambiarEstado();
+        exit; // IMPORTANTE: Salir después de JSON
     } else {
         // Acciones CRUD estándar para hallazgos
         if ($action === 'create' && $_SERVER['REQUEST_METHOD'] === 'POST') {

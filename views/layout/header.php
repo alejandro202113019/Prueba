@@ -1,3 +1,8 @@
+<!-- views/layout/header.php - VERSIÓN CORREGIDA -->
+<?php
+// Definir $entity si no existe para evitar errores
+$entity = $entity ?? ($_GET['entity'] ?? 'hallazgo');
+?>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <a class="navbar-brand" href="index.php">Gestión</a>
     <div class="collapse navbar-collapse">

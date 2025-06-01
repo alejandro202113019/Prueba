@@ -1,5 +1,5 @@
 <?php
-// controllers/HallazgoController.php - Versión con cambio de estado
+// controllers/HallazgoController.php - Versión completa con cambio de estado
 require_once 'models/HallazgoModel.php';
 require_once 'models/ProcesoModel.php';
 require_once 'models/EstadoModel.php';
@@ -198,51 +198,137 @@ class HallazgoController {
      * Método: POST con entity=hallazgo&action=cambiar_estado
      */
     public function cambiarEstado() {
+        // PRIMERA LÍNEA: Asegurar que no hay output antes
+        error_log("🔄 INICIO cambiarEstado() - Method: " . $_SERVER['REQUEST_METHOD']);
+        
+        // IMPORTANTE: Headers primero, antes de cualquier output
         header('Content-Type: application/json');
         header('Cache-Control: no-cache, must-revalidate');
         
+        // Log para debug
+        error_log("✅ Headers JSON enviados");
+        
         try {
+            // Verificar que es POST
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                error_log("❌ Método no es POST: " . $_SERVER['REQUEST_METHOD']);
+                http_response_code(405);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Método no permitido. Use POST.'
+                ]);
+                exit; // CRÍTICO
+            }
+            
+            error_log("📋 Datos POST recibidos: " . json_encode($_POST));
+            
             $recordId = $_POST['record_id'] ?? null;
             $estadoActual = $_POST['estado_actual'] ?? null;
             $estadoNuevo = $_POST['estado_nuevo'] ?? null;
-            $usuarioId = $_POST['usuario_id'] ?? 1; // TODO: Obtener usuario actual
+            $usuarioId = $_POST['usuario_id'] ?? 1;
             $comentario = $_POST['comentario'] ?? null;
             
+            error_log("📋 Parámetros extraídos: ID=$recordId, $estadoActual -> $estadoNuevo");
+            
+            // Validar parámetros requeridos
             if (!$recordId || !$estadoActual || !$estadoNuevo) {
+                error_log("❌ Faltan parámetros requeridos");
                 http_response_code(400);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Parámetros requeridos: record_id, estado_actual, estado_nuevo'
+                    'message' => 'Parámetros requeridos: record_id, estado_actual, estado_nuevo',
+                    'debug' => [
+                        'record_id' => $recordId,
+                        'estado_actual' => $estadoActual,
+                        'estado_nuevo' => $estadoNuevo
+                    ]
                 ]);
-                return;
+                exit; // CRÍTICO
             }
             
             // Verificar que el hallazgo existe
+            error_log("🔍 Buscando hallazgo ID: $recordId");
             $hallazgo = $this->model->getById($recordId);
             if (!$hallazgo) {
+                error_log("❌ Hallazgo no encontrado: $recordId");
                 http_response_code(404);
                 echo json_encode([
                     'success' => false,
                     'message' => 'Hallazgo no encontrado'
                 ]);
-                return;
+                exit; // CRÍTICO
             }
             
-            // Crear y ejecutar comando usando Command Pattern
-            $command = new CambiarEstadoCommand(
-                $recordId,
-                'hallazgo',
-                $estadoActual,
-                $estadoNuevo,
-                $usuarioId,
-                $this->model,
-                $comentario
-            );
+            error_log("✅ Hallazgo encontrado: " . $hallazgo['titulo']);
             
-            $resultado = $command->execute();
+            // Validar transición usando State Pattern
+            error_log("🔍 Validando transición: $estadoActual -> $estadoNuevo");
+            
+            // Asegurar que EstadoFactory esté disponible
+            if (!class_exists('EstadoFactory')) {
+                require_once 'models/factories/EstadoFactory.php';
+            }
+            
+            if (!EstadoFactory::validarTransicion($estadoActual, $estadoNuevo)) {
+                error_log("❌ Transición no válida: $estadoActual -> $estadoNuevo");
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => "Transición no válida de '{$estadoActual}' a '{$estadoNuevo}'"
+                ]);
+                exit; // CRÍTICO
+            }
+            
+            error_log("✅ Transición válida");
+            
+            // Obtener ID del nuevo estado
+            error_log("🔍 Buscando ID del estado: $estadoNuevo");
+            $stmt = $this->model->getPdo()->prepare("SELECT id FROM Estado WHERE nombre = ?");
+            $stmt->execute([$estadoNuevo]);
+            $estadoRow = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$estadoRow) {
+                error_log("❌ Estado no encontrado en BD: $estadoNuevo");
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => "Estado '{$estadoNuevo}' no encontrado en la base de datos"
+                ]);
+                exit; // CRÍTICO
+            }
+            
+            $nuevoEstadoId = $estadoRow['id'];
+            error_log("✅ Estado ID encontrado: $nuevoEstadoId");
+            
+            // Ejecutar cambio en la base de datos
+            error_log("🔄 Ejecutando cambio en BD...");
+            $resultado = $this->model->cambiarEstado($recordId, $nuevoEstadoId);
             
             if ($resultado) {
-                echo json_encode([
+                error_log("✅ Cambio exitoso en BD");
+                
+                // Registrar en auditoría (opcional)
+                try {
+                    if (file_exists('models/AuditoriaModel.php')) {
+                        require_once 'models/AuditoriaModel.php';
+                        $auditoriaModel = new AuditoriaModel($this->model->getPdo());
+                        $auditoriaModel->registrar([
+                            'tabla' => 'Hallazgo',
+                            'registro_id' => $recordId,
+                            'accion' => 'cambiar_estado',
+                            'valor_anterior' => $estadoActual,
+                            'valor_nuevo' => $estadoNuevo,
+                            'usuario_id' => $usuarioId,
+                            'comentario' => $comentario
+                        ]);
+                        error_log("✅ Auditoría registrada");
+                    }
+                } catch (Exception $auditError) {
+                    error_log("⚠️ Error en auditoría (no crítico): " . $auditError->getMessage());
+                }
+                
+                // Respuesta exitosa
+                $response = [
                     'success' => true,
                     'message' => "Estado cambiado exitosamente de '{$estadoActual}' a '{$estadoNuevo}'",
                     'data' => [
@@ -251,20 +337,33 @@ class HallazgoController {
                         'estado_nuevo' => $estadoNuevo,
                         'timestamp' => date('Y-m-d H:i:s')
                     ]
-                ]);
+                ];
+                
+                error_log("✅ Enviando respuesta exitosa: " . json_encode($response));
+                echo json_encode($response);
+                
             } else {
-                throw new Exception("Error ejecutando el comando de cambio de estado");
+                error_log("❌ Error en cambio de BD");
+                throw new Exception("Error al actualizar el estado en la base de datos");
             }
             
         } catch (Exception $e) {
+            error_log("❌ Excepción capturada: " . $e->getMessage());
             http_response_code(500);
-            echo json_encode([
+            $errorResponse = [
                 'success' => false,
-                'message' => 'Error cambiando estado: ' . $e->getMessage()
-            ]);
-            
-            error_log("Error en cambio de estado: " . $e->getMessage());
+                'message' => 'Error cambiando estado: ' . $e->getMessage(),
+                'debug' => [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]
+            ];
+            echo json_encode($errorResponse);
         }
+        
+        // CRÍTICO: Terminar aquí para evitar output adicional
+        error_log("🔚 FINAL cambiarEstado() - Ejecutando exit");
+        exit;
     }
 }
 ?>

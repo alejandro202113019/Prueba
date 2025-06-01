@@ -1,9 +1,10 @@
-<!-- views/hallazgo/list.php -->
+<!-- views/hallazgo/list.php - SIN DUPLICADOS -->
 <?php include 'views/layout/header.php'; ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista de Hallazgos</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
@@ -17,22 +18,24 @@
         </div>
     </div>
 
-    <!-- Filtro por Sede -->
+    <!-- FILTRO POR SEDE - ÚNICO (NO DUPLICADO) -->
     <div class="mb-3">
         <div class="row">
             <div class="col-md-4">
-                <label for="sede-filter">Filtrar por Sede:</label>
-                <select class="form-control" id="sede-filter">
+                <label for="sede-filter-main">Filtrar por Sede:</label>
+                <select class="form-control" id="sede-filter-main">
                     <option value="">Todas las sedes</option>
-                    <?php foreach ($sedes as $sede): ?>
-                        <option value="<?= $sede['id'] ?>" <?= (isset($_GET['sede_id']) && $_GET['sede_id'] == $sede['id']) ? 'selected' : '' ?>>
-                            <?= $sede['nombre'] ?> (<?= $sede['ciudad'] ?>)
-                        </option>
-                    <?php endforeach; ?>
+                    <?php if (isset($sedes) && !empty($sedes)): ?>
+                        <?php foreach ($sedes as $sede): ?>
+                            <option value="<?= $sede['id'] ?>" <?= (isset($_GET['sede_id']) && $_GET['sede_id'] == $sede['id']) ? 'selected' : '' ?>>
+                                <?= $sede['nombre'] ?> (<?= $sede['ciudad'] ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </select>
             </div>
             <div class="col-md-2 d-flex align-items-end">
-                <button type="button" class="btn btn-secondary" id="clear-sede-filter">
+                <button type="button" class="btn btn-secondary" id="clear-sede-filter-main">
                     🗑️ Limpiar
                 </button>
             </div>
@@ -42,22 +45,6 @@
                         <small>Mostrando <?= count($hallazgos) ?> hallazgos de: <strong><?= $sedeSeleccionada['nombre'] ?></strong></small>
                     </div>
                 <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Leyenda de Estados -->
-    <div class="mb-3">
-        <div class="card">
-            <div class="card-body py-2">
-                <small class="text-muted">
-                    <strong>Estados:</strong>
-                    <span class="badge badge-danger">🚨 Abierto</span>
-                    <span class="badge badge-warning">⚠️ En Proceso</span>
-                    <span class="badge badge-success">✅ Resuelto</span>
-                    <span class="badge badge-secondary">🔒 Cerrado</span>
-                    <em class="ml-2">Haz clic en cualquier estado para cambiarlo</em>
-                </small>
             </div>
         </div>
     </div>
@@ -84,22 +71,25 @@
                     </td>
                 </tr>
             <?php else: ?>
-                <?php foreach ($hallazgos as $hallazgo): ?>
-                <tr>
+                <?php foreach ($hallazgos as $index => $hallazgo): ?>
+                <tr data-hallazgo-id="<?= $hallazgo['id'] ?>">
                     <td><strong><?= $hallazgo['id'] ?></strong></td>
                     <td><?= $hallazgo['titulo'] ?></td>
                     <td class="text-truncate" style="max-width: 200px;" title="<?= htmlspecialchars($hallazgo['descripcion']) ?>">
                         <?= strlen($hallazgo['descripcion']) > 50 ? substr($hallazgo['descripcion'], 0, 50) . '...' : $hallazgo['descripcion'] ?>
                     </td>
                     <td>
-                        <!-- El EstadoManager convertirá esto en un dropdown interactivo -->
-                        <span class="badge badge-<?= $hallazgo['estado_nombre'] === 'Abierto' ? 'danger' : ($hallazgo['estado_nombre'] === 'En Proceso' ? 'warning' : ($hallazgo['estado_nombre'] === 'Resuelto' ? 'success' : 'secondary')) ?>">
+                        <!-- Estado Badge - CON ID ÚNICO -->
+                        <span class="badge badge-<?= $hallazgo['estado_nombre'] === 'Abierto' ? 'danger' : ($hallazgo['estado_nombre'] === 'En Proceso' ? 'warning' : ($hallazgo['estado_nombre'] === 'Resuelto' ? 'success' : 'secondary')) ?>" 
+                              data-record-id="<?= $hallazgo['id'] ?>" 
+                              data-entity="hallazgo"
+                              data-current-estado="<?= $hallazgo['estado_nombre'] ?>">
                             <?= $hallazgo['estado_nombre'] ?>
                         </span>
                     </td>
                     <td><?= $hallazgo['usuario_nombre'] ?></td>
                     <td>
-                        <?php if ($hallazgo['sede_nombre']): ?>
+                        <?php if (!empty($hallazgo['sede_nombre'])): ?>
                             <span class="badge badge-info"><?= $hallazgo['sede_nombre'] ?></span>
                         <?php else: ?>
                             <span class="text-muted"><em>Sin sede</em></span>
@@ -158,12 +148,11 @@
 <!-- Scripts necesarios -->
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/js/components/SedeManager.js"></script>
 <script src="assets/js/components/EstadoManager.js"></script>
 
 <script>
-// Mejorar el filtro de sedes
-document.getElementById('sede-filter').addEventListener('change', function() {
+// Filtro de sedes - CON IDs ÚNICOS (SIN DUPLICADOS)
+document.getElementById('sede-filter-main').addEventListener('change', function() {
     const sedeId = this.value;
     if (sedeId) {
         window.location.href = `index.php?entity=hallazgo&action=index&sede_id=${sedeId}`;
@@ -172,9 +161,41 @@ document.getElementById('sede-filter').addEventListener('change', function() {
     }
 });
 
-document.getElementById('clear-sede-filter').addEventListener('click', function() {
+document.getElementById('clear-sede-filter-main').addEventListener('click', function() {
     window.location.href = 'index.php?entity=hallazgo&action=index';
 });
+
+// Debug para verificar que no hay duplicados
+document.addEventListener('DOMContentLoaded', function() {
+    const sedeFilters = document.querySelectorAll('[id*="sede-filter"]');
+    console.log(`🔍 Filtros de sede encontrados: ${sedeFilters.length}`);
+    
+    if (sedeFilters.length > 1) {
+        console.warn('⚠️ ENCONTRADOS FILTROS DUPLICADOS:');
+        sedeFilters.forEach((filter, index) => {
+            console.warn(`- Filtro ${index + 1}: ID=${filter.id}`);
+        });
+    } else {
+        console.log('✅ Solo un filtro de sede (correcto)');
+    }
+});
 </script>
+
+<style>
+/* Asegurar que no hay elementos duplicados visibles */
+[id*="sede-filter"]:not(#sede-filter-main) {
+    display: none !important;
+}
+
+.badge[data-record-id] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.badge[data-record-id]:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+</style>
 </body>
 </html>
